@@ -51,3 +51,15 @@ Initial setup of the frontend application, including project structure, routing,
 
 ### 7. UX Improvements
 - **Navigation**: Added "Back to Home" buttons to `LoginPage` and `SignupPage` to improve user flow from auth screens back to the landing page.
+
+### 8. UI/UX Redesign - Dark Theme
+- **Landing Page Refinement**: Completely redesigned `LandingPage.jsx` with a premium dark theme.
+  - Implemented `bg-gray-950` base with custom background gradients.
+  - Added glassmorphism effects to cards and sections.
+  - Enhanced typography with gradients (`bg-clip-text`) and improved contrast.
+  - Modernized "How It Works" and "Who Is It For" sections with hover effects and icons.
+- **Navbar Integration**: Updated `Navbar.jsx` to be transparent on the landing page and solid on other pages. Added scroll detection to apply a "frosted glass" effect (`backdrop-blur`) when scrolling down the landing page.
+- **Global Dark Theme**: Rolled out the dark theme (`bg-gray-950`) to the entire application.
+  - Updated `Layout.jsx` to force dark background globally.
+  - Redesigned `LoginPage.jsx` and `SignupPage.jsx` with dark backgrounds, dark input fields, and light text.
+  - Themed `StartupDashboard.jsx` and `InvestorDashboard.jsx` with dark cards (`bg-gray-900`), border accents (`border-white/5`), and high-contrast text.
