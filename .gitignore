@@ -3,6 +3,7 @@ node_modules/
 __pycache__/
 venv/
 .env
+.env.*
 
 # OS junk
 .DS_Store
