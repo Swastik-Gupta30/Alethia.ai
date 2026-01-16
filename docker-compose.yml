@@ -3,7 +3,8 @@ services:
     image: mongo:latest
     container_name: turing_mongodb
     ports:
-      - "27017:27017"
+      - "${MONGO_HOST_PORT:-27017}:27017"
+
     volumes:
       - mongodb_data:/data/db
     networks:
@@ -15,15 +16,17 @@ services:
       dockerfile: Dockerfile
     container_name: turing_backend
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
+    env_file:
+      - .env
     environment:
       - PORT=8000
       - MONGODB_URI=mongodb://mongodb:27017/turing_pg
-      - CORS_ORIGIN=*
-      - ACCESS_TOKEN_SECRET=your_access_token_secret_here
-      - ACCESS_TOKEN_EXPIRY=1d
-      - REFRESH_TOKEN_SECRET=your_refresh_token_secret_here
-      - REFRESH_TOKEN_EXPIRY=10d
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      - ACCESS_TOKEN_SECRET=${ACCESS_TOKEN_SECRET:-your_access_token_secret_here}
+      - ACCESS_TOKEN_EXPIRY=${ACCESS_TOKEN_EXPIRY:-1d}
+      - REFRESH_TOKEN_SECRET=${REFRESH_TOKEN_SECRET:-your_refresh_token_secret_here}
+      - REFRESH_TOKEN_EXPIRY=${REFRESH_TOKEN_EXPIRY:-10d}
     depends_on:
       - mongodb
     networks:
@@ -35,9 +38,21 @@ services:
       dockerfile: Dockerfile
     container_name: turing_frontend
     ports:
-      - "3001:80"
+      - "${FRONTEND_PORT:-3001}:80"
+    env_file:
+      - .env
     depends_on:
       - backend
+    networks:
+      - turing_network
+
+  ml:
+    build:
+      context: ./ML
+      dockerfile: Dockerfile
+    container_name: turing_ml
+    volumes:
+      - ./ML:/app
     networks:
       - turing_network
 
