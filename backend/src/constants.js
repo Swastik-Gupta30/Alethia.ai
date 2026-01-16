@@ -1,1 +1,1 @@
-export const DB_NAME = "Alethia AI"
+export const DB_NAME = "turing_pg"

@@ -1,7 +1,6 @@
-torch>=2.0.0
+
 pytorch-lightning>=2.0.0
-transformers
-transformers[torch]
+
 ruptures
 numpy
 mlflow
