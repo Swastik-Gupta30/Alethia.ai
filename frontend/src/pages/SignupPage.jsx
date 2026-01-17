@@ -7,11 +7,34 @@ export default function SignupPage() {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [role, setRole] = useState("Investor");
+    const [role, setRole] = useState("investor"); // Default to lowercase to match backend enum if needed, or map later
+    const [companyName, setCompanyName] = useState("");
+    const [error, setError] = useState("");
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        signup({ name, email, role });
+        setError("");
+
+        // Map frontend role to backend role
+        // Frontend: Startup, Investor
+        // Backend: founder, investor
+        // Let's assume the select values should just be the backend values? 
+        // Or we map them. Let's map them for better UI ("Startup" looks better than "founder" maybe?)
+
+        // Actually, let's keep the select values as visual strings but state as backend values.
+
+        try {
+            await signup({
+                username: name, // Backend expects username
+                email,
+                password,
+                role, // "founder" or "investor"
+                companyName: role === "founder" ? companyName : undefined
+            });
+        } catch (err) {
+            console.error("Signup error:", err);
+            setError(err.response?.data?.message || err.message || "Failed to sign up");
+        }
     };
 
     return (
@@ -29,10 +52,11 @@ export default function SignupPage() {
 
             <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
                 <form className="space-y-6" onSubmit={handleSubmit}>
+                    {error && <div className="text-red-400 text-sm text-center bg-red-900/20 p-2 rounded border border-red-900/50">{error}</div>}
 
                     <div>
                         <label htmlFor="name" className="block text-sm font-medium leading-6 text-gray-300">
-                            Full Name
+                            Username
                         </label>
                         <div className="mt-2">
                             <input
@@ -77,11 +101,31 @@ export default function SignupPage() {
                                 onChange={(e) => setRole(e.target.value)}
                                 className="block w-full rounded-md border-0 py-1.5 bg-gray-900 text-white shadow-sm ring-1 ring-inset ring-gray-700 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6 px-3"
                             >
-                                <option value="Investor">Investor</option>
-                                <option value="Startup">Startup</option>
+                                <option value="investor">Investor</option>
+                                <option value="founder">Startup Founder</option>
                             </select>
                         </div>
                     </div>
+
+                    {/* Conditional Company Name Field */}
+                    {role === "founder" && (
+                        <div>
+                            <label htmlFor="companyName" className="block text-sm font-medium leading-6 text-gray-300">
+                                Company Name
+                            </label>
+                            <div className="mt-2">
+                                <input
+                                    id="companyName"
+                                    name="companyName"
+                                    type="text"
+                                    required
+                                    value={companyName}
+                                    onChange={(e) => setCompanyName(e.target.value)}
+                                    className="block w-full rounded-md border-0 py-1.5 bg-gray-900 text-white shadow-sm ring-1 ring-inset ring-gray-700 placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-indigo-500 sm:text-sm sm:leading-6 px-3"
+                                />
+                            </div>
+                        </div>
+                    )}
 
                     <div>
                         <label htmlFor="password" className="block text-sm font-medium leading-6 text-gray-300">

@@ -7,21 +7,26 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import StartupDashboard from "./pages/dashboard/StartupDashboard";
 import InvestorDashboard from "./pages/dashboard/InvestorDashboard";
 
+import PublicRoute from "./components/PublicRoute";
+
 function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
+
+        <Route element={<PublicRoute />}>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+        </Route>
 
         {/* Protected Startup Routes */}
-        <Route element={<ProtectedRoute allowedRoles={["Startup"]} />}>
+        <Route element={<ProtectedRoute allowedRoles={["founder"]} />}>
           <Route path="/dashboard/startup" element={<StartupDashboard />} />
         </Route>
 
         {/* Protected Investor Routes */}
-        <Route element={<ProtectedRoute allowedRoles={["Investor"]} />}>
+        <Route element={<ProtectedRoute allowedRoles={["investor"]} />}>
           <Route path="/dashboard/investor" element={<InvestorDashboard />} />
         </Route>
       </Route>

@@ -12,7 +12,7 @@ export default function ProtectedRoute({ allowedRoles }) {
 
     if (allowedRoles && !allowedRoles.includes(user.role)) {
         // Redirect to appropriate dashboard if logged in but wrong role
-        return <Navigate to={user.role === 'Startup' ? '/dashboard/startup' : '/dashboard/investor'} replace />;
+        return <Navigate to={user.role === 'founder' ? '/dashboard/startup' : '/dashboard/investor'} replace />;
     }
 
     return <Outlet />;

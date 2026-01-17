@@ -52,7 +52,7 @@ function Navbar() {
                             <div className="flex items-center space-x-4">
                                 <div className="flex items-center space-x-2 text-gray-300">
                                     <User size={18} />
-                                    <span className="text-sm font-medium">{user.name} ({user.role})</span>
+                                    <span className="text-sm font-medium">{user.username} ({user.role})</span>
                                 </div>
                                 <button onClick={logout} className="text-gray-400 hover:text-red-400 transition-colors">
                                     <LogOut size={20} />

@@ -140,3 +140,37 @@ Integrated the complete Machine Learning pipeline with synthetic data generation
   - **Backend**: Added `Dockerfile` and `.dockerignore` for the Node.js backend.
   - **Frontend**: Added `Dockerfile` and `.dockerignore` for the Vite/React frontend.
 - **Configuration**: Updated `backend/src/app.js` to handle environment configuration within the Docker container.
+
+---
+
+## [2026-01-17] Authentication System Integration & Deployment Hardening
+
+### Summary
+Fully integrated the backend JWT authentication with the React frontend, implemented role-based access control, secured the application with proper CORS configuration, and migrated the database to MongoDB Atlas for cloud persistence.
+
+### 1. Frontend Authentication Implementation
+- **Centralized API Client (`src/lib/axios.js`)**:
+  - Implemented automatic token injection (`Authorization: Bearer ...`).
+  - Added smart response interceptors to handle `401 Unauthorized` errors by automatically refreshing the access token via HttpOnly cookies and retrying the failed request.
+- **Global Auth Store (`src/context/AuthContext.jsx`)**:
+  - Replaced mock auth with real API integration for Login, Signup, and Logout.
+  - Implemented session restoration on page reload by verifying the refresh token.
+  - Added JWT decoding to extract user roles (`founder` vs `investor`) and metadata.
+- **Route Protection**:
+  - **Public Routes (`src/components/PublicRoute.jsx`)**: New wrapper to redirect authenticated users away from Login/Signup pages.
+  - **Protected Routes**: Enhanced to handle role-based redirection (Founders -> Startup Dashboard, Investors -> Investor Dashboard).
+
+### 2. UI/UX Enhancements
+- **Real-Time Feedback**: Updated `LoginPage` and `SignupPage` to display actual backend error messages.
+- **Role & Data Mapping**:
+  - Mapped frontend roles ("Startup", "Investor") to backend enums ("founder", "investor").
+  - Added conditional "Company Name" field for Founders during signup.
+  - Updated Navbar to display the authenticated user's real username.
+
+### 3. Backend & DevOps Improvements
+- **CORS Configuration**:
+  - Fixed `backend/src/app.js` to explicitly allow credentials from Docker frontend (`http://localhost:3001`) and Vite dev server (`http://localhost:5173`).
+- **Database Migration**:
+  - Transitioned from ephemeral local Docker MongoDB to **MongoDB Atlas**.
+  - Updated `docker-compose.yml` to respect `MONGODB_URI` from `.env`.
+  - Configured environment variables to point to the production-grade cloud database `turing_pg`.

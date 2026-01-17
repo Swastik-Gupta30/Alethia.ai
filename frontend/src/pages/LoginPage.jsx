@@ -8,22 +8,17 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
 
-        // Mock Login Logic
-        const storedUser = localStorage.getItem("user");
-        if (storedUser) {
-            const u = JSON.parse(storedUser);
-            if (u.email === email) {
-                login(u);
-                return;
-            }
+        try {
+            await login({ email, password });
+        } catch (err) {
+            // Handle error response from backend
+            // err.response.data.message usually contains the API error message
+            setError(err.response?.data?.message || "Failed to log in");
         }
-
-        const mockUser = { name: "Test User", email, role: "Investor" };
-        login(mockUser);
     };
 
     return (
