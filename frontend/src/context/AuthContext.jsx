@@ -65,6 +65,23 @@ export function AuthProvider({ children }) {
         }
     };
 
+    const googleLogin = async (credential) => {
+        try {
+            const { data } = await api.post("/users/google", { credential });
+            const decodedUser = handleToken(data.data.accessToken);
+
+            // Navigate based on role (default is investor if new, or existing)
+            if (decodedUser?.role === "Startup" || decodedUser?.role === "founder") {
+                navigate("/dashboard/startup");
+            } else {
+                navigate("/dashboard/investor");
+            }
+            return data;
+        } catch (error) {
+            throw error;
+        }
+    };
+
     const signup = async (userData) => {
         try {
             const { data } = await api.post("/users/register", userData);
@@ -93,7 +110,7 @@ export function AuthProvider({ children }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, signup, logout, loading }}>
+        <AuthContext.Provider value={{ user, login, signup, logout, googleLogin, loading }}>
             {!loading && children}
         </AuthContext.Provider>
     );

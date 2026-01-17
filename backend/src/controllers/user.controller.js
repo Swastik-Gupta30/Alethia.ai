@@ -1,19 +1,19 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
-import {ApiError} from "../utils/ApiError.js"
+import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/user.model.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 
-const generateAccessAndRefereshTokens = async(userId) =>{
+const generateAccessAndRefereshTokens = async (userId) => {
     try {
         const user = await User.findById(userId)  //user is an object and has all the properties
         const accessToken = user.generateAccessToken()
         const refreshToken = user.generateRefreshToken()
-                         //we give the access token to the user , but store refresh token in db also
-        user.refreshToken = refreshToken 
+        //we give the access token to the user , but store refresh token in db also
+        user.refreshToken = refreshToken
         await user.save({ validateBeforeSave: false })  // we dont want to run all the validations again while saving refresh token , see from schema
 
-        return {accessToken, refreshToken}
+        return { accessToken, refreshToken }
 
 
     } catch (error) {
@@ -25,7 +25,7 @@ const generateAccessAndRefereshTokens = async(userId) =>{
 const registerUser = asyncHandler(async (req, res) => {
     // 1. Get user details from request body
     // CHANGED: name -> username
-    const { username, email, password, role, companyName } = req.body; 
+    const { username, email, password, role, companyName } = req.body;
 
     // 2. Basic Validation
     // CHANGED: Check username instead of name
@@ -53,10 +53,10 @@ const registerUser = asyncHandler(async (req, res) => {
     // 5. Create User Object
     const user = await User.create({
         username: username.toLowerCase(), // CHANGED: Store lowercase for consistency
-        email, 
+        email,
         password,
         role,
-        companyName: companyName ? companyName.trim() : "" 
+        companyName: companyName ? companyName.trim() : ""
     });
 
     // 6. Return Response (exclude password & refresh token)
@@ -89,7 +89,7 @@ const loginUser = asyncHandler(async (req, res) => {
     // IMPORTANT: specific to your B2B schema, we ensure lowercase matching
     const user = await User.findOne({
         $or: [
-            { username: username?.toLowerCase() }, 
+            { username: username?.toLowerCase() },
             { email: email?.toLowerCase() }
         ]
     });
@@ -166,7 +166,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
     // 1. Get Token from Cookie OR Body (Mobile apps often use body)
-    const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+    const incomingRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
 
     if (!incomingRefreshToken) {
         throw new ApiError(401, "Unauthorized request");
@@ -210,9 +210,9 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
             .json(
                 new ApiResponse(
                     200,
-                    { 
-                        accessToken, 
-                        refreshToken: newRefreshToken 
+                    {
+                        accessToken,
+                        refreshToken: newRefreshToken
                     },
                     "Access token refreshed successfully"
                 )
@@ -223,7 +223,80 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     }
 });
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken }
+const googleAuth = asyncHandler(async (req, res) => {
+    const { credential } = req.body; // Google ID Token
+
+    try {
+        const { OAuth2Client } = await import('google-auth-library');
+        const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+        const ticket = await client.verifyIdToken({
+            idToken: credential,
+            audience: process.env.GOOGLE_CLIENT_ID
+        });
+        const payload = ticket.getPayload();
+
+        const { email, name, sub: googleId } = payload;
+
+        // 1. Check if user exists
+        let user = await User.findOne({
+            $or: [{ email }, { googleId }]
+        });
+
+        if (!user) {
+            // 2. Create new user if not exists
+            // Generate a random username if name is taken? Or just use name/email part.
+            // Simple strategy: use email prefix + random number
+            const baseUsername = email.split('@')[0];
+            const randomSuffix = Math.floor(Math.random() * 10000);
+            const username = `${baseUsername}${randomSuffix}`;
+
+            user = await User.create({
+                username: username.toLowerCase(),
+                email,
+                googleId,
+                role: "investor", // Default role
+                // password: "" // No password for Google Auth users
+            });
+        } else if (!user.googleId) {
+            // Link Google Account to existing account
+            user.googleId = googleId;
+            await user.save({ validateBeforeSave: false });
+        }
+
+        // 3. Generate Tokens (Same as Login)
+        const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(user._id);
+
+        const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
+
+        const options = {
+            httpOnly: true,
+            secure: true
+        };
+
+        return res
+            .status(200)
+            .cookie("accessToken", accessToken, options)
+            .cookie("refreshToken", refreshToken, options)
+            .json(
+                new ApiResponse(
+                    200,
+                    {
+                        user: loggedInUser,
+                        accessToken,
+                        refreshToken
+                    },
+                    "Google Login successful"
+                )
+            );
+
+    } catch (error) {
+        console.error("Google Auth Error:", error);
+        throw new ApiError(401, "Google Authentication failed");
+    }
+});
+
+export { registerUser, loginUser, logoutUser, refreshAccessToken, googleAuth }
 
 
 

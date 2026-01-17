@@ -6,6 +6,15 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+
+# Build arguments
+ARG VITE_API_URL
+ARG VITE_GOOGLE_CLIENT_ID
+
+# Set environment variables for the build
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+
 RUN npm run build
 
 # Serve stage

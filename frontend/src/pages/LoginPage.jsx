@@ -1,12 +1,22 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function LoginPage() {
-    const { login } = useAuth();
+    const { login, googleLogin } = useAuth();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
+    const navigate = useNavigate();
+
+    const handleGoogleLogin = async (credentialResponse) => {
+        try {
+            await googleLogin(credentialResponse.credential);
+        } catch (err) {
+            setError(err.response?.data?.message || "Google Login Failed");
+        }
+    }
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -83,6 +93,29 @@ export default function LoginPage() {
                         >
                             Sign in
                         </button>
+                    </div>
+
+                    <div className="relative mt-6">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-gray-700"></div>
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                            <span className="bg-gray-900 px-2 text-gray-400">Or continue with</span>
+                        </div>
+                    </div>
+
+                    <div className="mt-6 flex justify-center w-full">
+                        <GoogleLogin
+                            onSuccess={credentialResponse => {
+                                handleGoogleLogin(credentialResponse);
+                            }}
+                            onError={() => {
+                                console.log('Login Failed');
+                                setError("Google Login Failed");
+                            }}
+                            theme="filled_black"
+                            width="350"
+                        />
                     </div>
                 </form>
 

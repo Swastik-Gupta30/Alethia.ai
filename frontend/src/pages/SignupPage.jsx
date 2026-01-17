@@ -1,15 +1,25 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function SignupPage() {
-    const { signup } = useAuth();
+    const { signup, googleLogin } = useAuth();
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [role, setRole] = useState("investor"); // Default to lowercase to match backend enum if needed, or map later
+    const [role, setRole] = useState("investor");
     const [companyName, setCompanyName] = useState("");
     const [error, setError] = useState("");
+    const navigate = useNavigate();
+
+    const handleGoogleLogin = async (credentialResponse) => {
+        try {
+            await googleLogin(credentialResponse.credential);
+        } catch (err) {
+            setError(err.response?.data?.message || "Google Signup Failed");
+        }
+    }
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -153,6 +163,30 @@ export default function SignupPage() {
                             Sign up
                         </button>
                     </div>
+
+                    <div className="relative mt-6">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-gray-700"></div>
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                            <span className="bg-gray-900 px-2 text-gray-400">Or sign up with</span>
+                        </div>
+                    </div>
+
+                    <div className="mt-6 flex justify-center w-full">
+                        <GoogleLogin
+                            onSuccess={credentialResponse => {
+                                handleGoogleLogin(credentialResponse);
+                            }}
+                            onError={() => {
+                                console.log('Signup Failed');
+                                setError("Google Signup Failed");
+                            }}
+                            theme="filled_black"
+                            width="350"
+                            text="signup_with"
+                        />
+                    </div>
                 </form>
                 <p className="mt-10 text-center text-sm text-gray-400">
                     Already a member?{" "}
@@ -160,7 +194,7 @@ export default function SignupPage() {
                         Log in
                     </Link>
                 </p>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 }

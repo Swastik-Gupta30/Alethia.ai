@@ -174,3 +174,15 @@ Fully integrated the backend JWT authentication with the React frontend, impleme
   - Transitioned from ephemeral local Docker MongoDB to **MongoDB Atlas**.
   - Updated `docker-compose.yml` to respect `MONGODB_URI` from `.env`.
   - Configured environment variables to point to the production-grade cloud database `turing_pg`.
+
+### 4. Feature: Google OAuth2 Integration
+- **Backend Implementation**:
+  - Updated `User` model to support optional passwords and store `googleId`.
+  - Added `googleAuth` controller to verify Google ID Tokens using `google-auth-library`.
+  - Implemented logic to automatically create new accounts or link existing ones based on email.
+- **Frontend Integration**:
+  - Configured `GoogleOAuthProvider` with `VITE_GOOGLE_CLIENT_ID`.
+  - Updated `LoginPage` and `SignupPage` with "Sign in with Google" buttons using `@react-oauth/google`.
+  - Integrated Google login flow into `AuthContext` to handle token storage and redirection.
+- **Infrastructure**:
+  - Injected `GOOGLE_CLIENT_ID` into both frontend (via build args) and backend (via runtime env) containers.
