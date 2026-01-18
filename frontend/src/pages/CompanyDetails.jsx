@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import axios from "axios";
-import { AlertTriangle, ArrowLeft, CheckCircle, Brain, Activity } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle, Brain, Activity, TrendingUp } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function CompanyDetails() {
     const { ticker } = useParams();
@@ -12,15 +13,16 @@ export default function CompanyDetails() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // Fetch from our Node backend, which proxies to Python
-                // Assuming backend is running on /api/intelligence per Plan
-                // But in Vite dev we need to know the backend URL.
-                // Usually Vite proxies /api to backend, or we use absolute URL.
-                // Assuming default Vite proxy or CORS allows localhost:8000.
-                // Let's assume absolute path matching backend for now: http://localhost:8000/api/intelligence
-
+                // Fetch from our Node backend
                 const response = await axios.get(`http://localhost:8000/api/intelligence/${ticker}`);
-                setData(response.data);
+
+                // Inject mock history if not present (for demo purposes)
+                const enrichedData = {
+                    ...response.data,
+                    history: response.data.history || generateMockHistory(response.data.prediction)
+                };
+
+                setData(enrichedData);
             } catch (err) {
                 console.error("Failed to fetch intelligence data", err);
                 setError("Failed to load intelligence data.");
@@ -33,6 +35,24 @@ export default function CompanyDetails() {
             fetchData();
         }
     }, [ticker]);
+
+    // Helper to generate mock history based on trend
+    const generateMockHistory = (prediction) => {
+        const days = 20;
+        const data = [];
+        let price = 100; // Base price
+        const trend = prediction > 0 ? 1 : -1;
+
+        for (let i = 0; i < days; i++) {
+            const volatility = (Math.random() - 0.5) * 5;
+            price = price + (trend * 0.5) + volatility;
+            data.push({
+                date: `Day ${i + 1}`,
+                price: parseFloat(price.toFixed(2))
+            });
+        }
+        return data;
+    };
 
     if (loading) {
         return (
@@ -69,9 +89,13 @@ export default function CompanyDetails() {
     const progress = data.reliability_score / 100;
     const dashoffset = circumference * (1 - progress);
 
+    // Chart colors
+    const isBullish = data.prediction > 0;
+    const chartColor = isBullish ? "#4ade80" : "#f87171";
+
     return (
         <div className="min-h-screen bg-gray-950 text-white p-6 md:p-12">
-            <div className="max-w-4xl mx-auto">
+            <div className="max-w-6xl mx-auto">
                 <Link to="/dashboard/investor" className="inline-flex items-center text-gray-400 hover:text-white mb-8 transition-colors">
                     <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
                 </Link>
@@ -86,8 +110,8 @@ export default function CompanyDetails() {
                                 AI Generated
                             </span>
                             <span className={`px-3 py-1 rounded-full text-sm font-medium ring-1 ring-inset ${data.regime === "Stable" || data.regime === "Stable Growth"
-                                    ? "bg-green-500/10 text-green-400 ring-green-500/20"
-                                    : "bg-orange-500/10 text-orange-400 ring-orange-500/20"
+                                ? "bg-green-500/10 text-green-400 ring-green-500/20"
+                                : "bg-orange-500/10 text-orange-400 ring-orange-500/20"
                                 }`}>
                                 Regime: {data.regime}
                             </span>
@@ -96,7 +120,49 @@ export default function CompanyDetails() {
                 </header>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {/* Column 1: Score */}
+                    {/* Column 1: Financial Performance (Chart) */}
+                    <div className="md:col-span-2">
+                        <div className="bg-gray-900 rounded-2xl p-6 border border-white/5 shadow-xl h-full">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-lg font-medium text-gray-300">Projected Performance</h3>
+                                <div className={`flex items-center text-sm font-bold ${isBullish ? 'text-green-400' : 'text-red-400'}`}>
+                                    <TrendingUp className={`w-4 h-4 mr-1 ${!isBullish && 'transform rotate-180'}`} />
+                                    {isBullish ? 'Bullish Outlook' : 'Bearish Outlook'}
+                                </div>
+                            </div>
+
+                            <div className="h-80 w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={data.history}>
+                                        <defs>
+                                            <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor={chartColor} stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.5} vertical={false} />
+                                        <XAxis dataKey="date" stroke="#9ca3af" fontSize={12} tickLine={false} axisLine={false} />
+                                        <YAxis stroke="#9ca3af" fontSize={12} tickLine={false} axisLine={false} domain={['auto', 'auto']} tickFormatter={(value) => `$${value}`} />
+                                        <Tooltip
+                                            contentStyle={{ backgroundColor: '#111827', borderColor: '#374151', color: '#fff' }}
+                                            itemStyle={{ color: '#fff' }}
+                                            formatter={(value) => [`$${value}`, 'Price']}
+                                        />
+                                        <Area
+                                            type="monotone"
+                                            dataKey="price"
+                                            stroke={chartColor}
+                                            strokeWidth={2}
+                                            fillOpacity={1}
+                                            fill="url(#colorPrice)"
+                                        />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Column 2: Score */}
                     <div className="md:col-span-1">
                         <div className="bg-gray-900 rounded-2xl p-6 border border-white/5 shadow-xl flex flex-col items-center justify-center h-full relative overflow-hidden">
                             <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50"></div>
@@ -138,8 +204,8 @@ export default function CompanyDetails() {
                         </div>
                     </div>
 
-                    {/* Column 2: Narrative & Alerts */}
-                    <div className="md:col-span-2 space-y-6">
+                    {/* Column 3: Narrative & Alerts (Full Width) */}
+                    <div className="md:col-span-3 space-y-6">
 
                         {/* Alert Card if Inconsistent */}
                         {!data.is_consistent && (
