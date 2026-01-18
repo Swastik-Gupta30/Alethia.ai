@@ -14,5 +14,5 @@ RUN pip install --no-cache-dir --prefer-binary -r requirements.txt
 
 COPY . .
 
-# Keep container running to allow executing scripts
-CMD ["tail", "-f", "/dev/null"]
+# Run FastAPI with uvicorn
+CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8001"]

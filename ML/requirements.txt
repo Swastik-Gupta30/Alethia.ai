@@ -5,3 +5,6 @@ ruptures
 numpy
 mlflow
 scikit-learn
+fastapi
+uvicorn
+pandas

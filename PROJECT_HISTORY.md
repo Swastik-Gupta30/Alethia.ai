@@ -2,6 +2,35 @@
 
 This document tracks all changes, feature implementations, and architectural decisions made throughout the development of the Financial Intelligence Platform.
 
+## [2026-01-18] Full Stack ML Integration & Docker Orchestration
+
+### Summary
+Connected the Python machine learning service to the MERN stack application, establishing a complete data pipeline from raw synthetic data to the frontend dashboard. Containerized the entire solution with Docker Compose and fixed production routing issues.
+
+### 1. Python ML Service (`ml/`)
+- **API Implementation**: Created `ml/src/api.py`, a FastAPI server that loads `market_data.csv` and `narratives.json` into memory on startup.
+- **Data Endpoint**: Implemented `GET /predict/{ticker}` to serve reliability scores and narrative analysis.
+- **Containerization**: Updated `ml/Dockerfile` to run the FastAPI server using `uvicorn` on port 8001.
+
+### 2. Backend Bridge (`backend/`)
+- **Intelligence Controller**: Created `intelligenceController.js` to act as a proxy between the Frontend and the ML service.
+- **Internal Networking**: Configured the backend to communicate with the ML container via the internal Docker network (`http://ml:8001`).
+- **Dependencies**: Added `axios` for internal service-to-service communication.
+
+### 3. Frontend Intelligence Features (`frontend/`)
+- **Investor Dashboard**: Updated with real ticker symbols (ALPHA, BETA, GAMMA, etc.) linking to detailed reports.
+- **Company Details Page**: Created a new "Deep Dive" page (`CompanyDetails.jsx`) featuring:
+  - **Reliability Score**: Visualized with a circular progress indicator.
+  - **Narrative Analysis**: Displaying the AI-generated textual analysis.
+  - **Consistency Alerts**: UI warning cards triggered when narrative sentiment mismatches market data.
+- **Routing Fix**: Implemented `nginx.conf` with `try_files` directive to resolve 404 errors on deep links (`/company/:ticker`) in the Dockerized environment.
+
+### 4. Docker Orchestraion
+- **Unified Stack**: Updated `docker-compose.yml` to spin up all services (Frontend, Backend, ML, MongoDB) with a single `docker compose up --build` command.
+- **Verification**: Verified data flow by modifying `narratives.json` and observing changes on the frontend, confirming the end-to-end pipeline.
+
+---
+
 ## [2026-01-16] Docker Containerization & ML Pipeline Integration
 
 ### Summary

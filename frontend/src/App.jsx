@@ -6,6 +6,7 @@ import SignupPage from "./pages/SignupPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import StartupDashboard from "./pages/dashboard/StartupDashboard";
 import InvestorDashboard from "./pages/dashboard/InvestorDashboard";
+import CompanyDetails from "./pages/CompanyDetails";
 
 import PublicRoute from "./components/PublicRoute";
 
@@ -28,6 +29,7 @@ function App() {
         {/* Protected Investor Routes */}
         <Route element={<ProtectedRoute allowedRoles={["investor"]} />}>
           <Route path="/dashboard/investor" element={<InvestorDashboard />} />
+          <Route path="/company/:ticker" element={<CompanyDetails />} />
         </Route>
       </Route>
     </Routes>
