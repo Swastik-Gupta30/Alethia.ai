@@ -1,6 +1,6 @@
 # Turing PG Project
 
-This repository contains the source code for the Turing PG Project.
+This repository contains the source code for the Turing Playground Project. 
 
 ## Structure
 - `backend/`: Backend service
