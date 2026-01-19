@@ -2,6 +2,36 @@
 
 This document tracks all changes, feature implementations, and architectural decisions made throughout the development of the Financial Intelligence Platform.
 
+## [2026-01-19] Agentic RAG Chatbot & Full Stack Integration
+
+### Summary
+Developed and integrated an autonomous "Agentic RAG" chatbot service capable of intelligent financial analysis. The system routes user queries to specialized tools for data comparison, consistency checks, and document retrieval. Fully integrated into the MERN stack with a secure backend proxy and a floating UI widget.
+
+### 1. AI Microservice (`llm/`)
+- **LangGraph Agent**: Implemented a stateful graph-based agent in `llm/src/agent.py` with specific nodes for Routing, Tool Execution, and Response Generation.
+- **Custom Tools (`llm/src/tools.py`)**:
+  - `FinancialComparatorTool`: Uses Pandas DataFrame Agent to compare metrics between tickers.
+  - `DiagnosticTool`: Checks for alignment inconsistencies between financial growth and narrative sentiment.
+  - `DocumentRAGTool`: Vector search over `narratives.json` using FAISS.
+- **API**: Exposed the agent via FastAPI on port 8002 (`llm/src/api.py`).
+
+### 2. Full Stack Integration
+- **Backend Proxy (`backend/`)**:
+  - Implemented `chat.routes.js` to securely proxy requests from the frontend to the Python AI service.
+  - Used Docker networking (`host.docker.internal`) to bridge communication between the Node container and the host-based Python service.
+- **Frontend Chatbot (`frontend/`)**:
+  - Created `Chatbot.jsx`: A floating action widget with a chat interface.
+  - **Auth Integration**: Widget only appears for logged-in users.
+  - **State Management**: Handles loading states, message history (User/Bot), and auto-scrolling.
+
+### 3. Stability & Hardening
+- **Strict Context Enforcement**: Configured system prompts to strictly refuse general knowledge questions (e.g., about celebrities) and focus solely on financial data.
+- **Infrastructure Fixes**:
+  - Resolved port conflict (Moved Python service from 8000 to 8002).
+  - Fixed `.env` loading issues by explicitly resolving the project root path.
+  - Fixed `UnicodeDecodeError` in environment files.
+
+---
 ## [2026-01-18] Full Stack ML Integration & Docker Orchestration
 
 ### Summary

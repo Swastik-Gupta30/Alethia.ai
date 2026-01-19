@@ -10,29 +10,34 @@ import CompanyDetails from "./pages/CompanyDetails";
 
 import PublicRoute from "./components/PublicRoute";
 
+import Chatbot from "./components/Chatbot";
+
 function App() {
   return (
-    <Routes>
-      <Route element={<Layout />}>
-        <Route path="/" element={<LandingPage />} />
+    <>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route path="/" element={<LandingPage />} />
 
-        <Route element={<PublicRoute />}>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-        </Route>
+          <Route element={<PublicRoute />}>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+          </Route>
 
-        {/* Protected Startup Routes */}
-        <Route element={<ProtectedRoute allowedRoles={["founder"]} />}>
-          <Route path="/dashboard/startup" element={<StartupDashboard />} />
-        </Route>
+          {/* Protected Startup Routes */}
+          <Route element={<ProtectedRoute allowedRoles={["founder"]} />}>
+            <Route path="/dashboard/startup" element={<StartupDashboard />} />
+          </Route>
 
-        {/* Protected Investor Routes */}
-        <Route element={<ProtectedRoute allowedRoles={["investor"]} />}>
-          <Route path="/dashboard/investor" element={<InvestorDashboard />} />
-          <Route path="/company/:ticker" element={<CompanyDetails />} />
+          {/* Protected Investor Routes */}
+          <Route element={<ProtectedRoute allowedRoles={["investor"]} />}>
+            <Route path="/dashboard/investor" element={<InvestorDashboard />} />
+            <Route path="/company/:ticker" element={<CompanyDetails />} />
+          </Route>
         </Route>
-      </Route>
-    </Routes>
+      </Routes>
+      <Chatbot />
+    </>
   );
 }
 

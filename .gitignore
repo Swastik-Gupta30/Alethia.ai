@@ -4,6 +4,7 @@ __pycache__/
 venv/
 .env
 
+myenv/
 
 # OS junk
 .DS_Store
@@ -20,3 +21,4 @@ yarn-error.log*
 
 # ML artifacts
 mlruns/
+llm/src/.env.example

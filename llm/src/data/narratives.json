@@ -1,0 +1,27 @@
+[
+    {
+        "ticker": "ALPHA",
+        "transcript": "Our analysis for ALPHA shows a very negative outlook for the coming quarter ",
+        "alignment_flag": true
+    },
+    {
+        "ticker": "BETA",
+        "transcript": "Our analysis for BETA shows a very positive outlook for the coming quarter.",
+        "alignment_flag": true
+    },
+    {
+        "ticker": "GAMMA",
+        "transcript": "Our analysis for GAMMA shows a very positive outlook for the coming quarter.",
+        "alignment_flag": true
+    },
+    {
+        "ticker": "DELTA",
+        "transcript": "Our analysis for DELTA shows a very positive outlook for the coming quarter.",
+        "alignment_flag": true
+    },
+    {
+        "ticker": "EPSILON",
+        "transcript": "Our analysis for EPSILON shows a very negative outlook for the coming quarter.",
+        "alignment_flag": true
+    }
+]
