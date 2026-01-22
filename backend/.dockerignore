@@ -1,8 +1,11 @@
-node_modules
-npm-debug.log
+# Exclude node_modules and caches from backend build context
+node_modules/
+npm-debug.log*
+__pycache__/
+*.pyc
 .env
+.git
 .gitignore
-.dockerignore
-Dockerfile
-docker-compose.yml
-README.md
+.vscode
+.idea
+python_service/  # If we don't want the python service files in the node backend image
