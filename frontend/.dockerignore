@@ -1,8 +1,9 @@
-node_modules
-dist
-.env
+# Exclude node_modules and build artifacts from frontend build context
+node_modules/
+dist/
+build/
+npm-debug.log*
+.git
 .gitignore
-.dockerignore
-Dockerfile
-docker-compose.yml
-README.md
+.vscode
+.idea
