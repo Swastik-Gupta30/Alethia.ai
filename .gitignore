@@ -22,3 +22,8 @@ yarn-error.log*
 # ML artifacts
 mlruns/
 llm/src/.env.example
+
+# Datasets & Training Data
+ML dataset/
+ML/market_data.csv
+ML/narratives.json

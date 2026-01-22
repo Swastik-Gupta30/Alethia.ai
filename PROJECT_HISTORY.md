@@ -2,6 +2,51 @@
 
 This document tracks all changes, feature implementations, and architectural decisions made throughout the development of the Financial Intelligence Platform.
 
+## [2026-01-22] Production ML Integration & Resilience
+
+### Summary
+Exposed ML inference as a clean, production-grade API and fully integrated it with the MERN stack. The new architecture ensures 24/7 reliability through self-healing mechanisms, background model loading, and graceful error handling.
+
+### 1. Microservices Architecture
+- **ML Service (`ML/src/api.py`)**: Replaced basic inference scripts with a robust FastAPI implementation.
+    - **Features**: Background model loading, feature padding for shape synchronization, and 503 "Service Unavailable" handling to prevent blocking.
+- **Backend (`intelligenceController.js`)**: Implemented the **Internal Service Abstraction** pattern. The Backend proxies requests to the ML service (`http://ml:8001`), using a 30-attempt retry mechanism to bridge the gap during ML cold starts. It also implements a MongoDB-based caching layer for fallback.
+- **Frontend (`InvestorDashboard.jsx`)**: Updated UI to handle "Model Initializing" states gracefully without crashing, offering auto-refresh capabilities.
+
+### 2. Docker & Networking
+- **Internal API**: The ML service is configured as an internal node on `turing_network`, inaccessible to the public internet, satisfying security best practices.
+- **Volume Management**: Configured persistence for `mlruns` to ensure model checkpoints survive container restarts.
+
+### 3. Verification
+- **Integration Tests**: Confirmed end-to-end data flow: `Frontend -> Backend Proxy -> ML Service (Inference)`.
+- **Self-Healing**: Triggered feature mismatches and verified that the system automatically sliced/padded inputs to prevent crashes.
+
+---
+
+## [2026-01-21] ML Pipeline Robustness & Dynamic Data Synchronization
+
+### Summary
+Enhanced the ML service to handle dynamic dataset changes and resolved critical model-loading issues. Implemented a self-healing data pipeline that synchronizes feature dimensions between training and inference automatically.
+
+### 1. Multimodal Dataset Architecture
+- **Dataset Composition**: The system utilizes a multimodal approach combining three distinct data streams:
+  - **Temporal Branch**: Sequential market data (OHLCV + Technical Indicators: RSI, MACD, ATR, EMA_20) processed in 5-day sliding windows.
+  - **Tabular Branch**: High-dimensional snapshot features including sector identifiers and financial ratios (P/E Ratio, Debt/Equity, Quick Ratio, Market Cap).
+  - **Textual Branch**: Sentiment and narrative analysis from `narratives.json` processed via FinBERT.
+- **Dynamic Feature Extraction**: Implemented logic to automatically determine the `tabular_dim` based on available columns in `market_data.csv`. This allows for adding or removing indicators in the CSV without manually updating model hyperparameters.
+- **Normalization**: Standardized raw data using Z-score normalization (Mean/Std) calculated across the entire dataset to ensure stable training.
+
+### 2. Operational Stability & Self-Healing
+- **Robust Loading (`api.py`)**: Developed a shape-filtering logic for `load_state_dict`. The system now compares the checkpoint's parameter shapes against the active model architecture, discarding mismatches with a warning instead of a `RuntimeError`.
+- **Auto-Reset Checkpoints**: Added logic to verify version compatibility. If the input dimensions have changed significantly since the last training session, the system automatically purges the old `mlruns/` directory and triggers a fresh training job.
+- **Background Retraining**: Configured the FastAPI lifespan to trigger training as a non-blocking background process (`subprocess.Popen`). This ensures the API remains available (returning a 503 "Model not loaded" or similar) rather than crashing the entire container.
+
+### 3. Verification & Sync
+- **Unified Logic**: Synchronized the exclusion lists across `train.py`, `api.py`, and `datamodule.py` to ensure identical feature mapping between training and production inference.
+- **Local MongoDB Migration**: Finalized the switch to a local containerized MongoDB for consistent local development, resolving connectivity issues with cloud-based Atlas clusters.
+
+---
+
 ## [2026-01-19] Agentic RAG Chatbot & Full Stack Integration
 
 ### Summary
