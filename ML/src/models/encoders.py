@@ -36,9 +36,14 @@ class TabularEncoder(nn.Module):
 
 class TextEncoder(nn.Module):
     """FinBERT-based encoder for news headlines and reports."""
-    def __init__(self, model_name='yiyanghkust/finbert-pretrain', latent_dim=128):
+    def __init__(self, model_name='yiyanghkust/finbert-pretrain', latent_dim=128, freeze=True):
         super().__init__()
         self.bert = AutoModel.from_pretrained(model_name)
+        
+        if freeze:
+            for param in self.bert.parameters():
+                param.requires_grad = False
+                
         self.projection = nn.Linear(self.bert.config.hidden_size, latent_dim)
 
     def forward(self, input_ids, attention_mask):

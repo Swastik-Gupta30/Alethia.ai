@@ -22,11 +22,19 @@ class ConsistencyLoss(nn.Module):
         total_loss = task_loss + self.lambda_consis * consis_loss
         return total_loss, task_loss, consis_loss
 
-def calculate_reliability_score(text_emb, numeric_emb):
+def calculate_reliability_score(text_emb, numeric_emb, eps=1e-9):
     """
     Outputs a 'Reliability Score' based on the inverse of the distance between embeddings.
+    Added epsilon to prevent NaN from extreme values.
     """
+    # Clamp embeddings to prevent extreme values
+    text_emb = torch.clamp(text_emb, min=-1e6, max=1e6)
+    numeric_emb = torch.clamp(numeric_emb, min=-1e6, max=1e6)
+    
     dist = torch.norm(text_emb - numeric_emb, p=2, dim=1)
-    # Map distance to [0, 1] range where 1 is highly reliable (low distance)
-    reliability = torch.exp(-dist)
+    # Add epsilon to prevent NaN and map distance to [0, 1] range
+    reliability = torch.exp(-dist.clamp(min=0, max=100))  # Clamp dist to prevent exp underflow
+    
+    # Replace any NaN with 0.5 (neutral reliability)
+    reliability = torch.where(torch.isnan(reliability), torch.tensor(0.5), reliability)
     return reliability
