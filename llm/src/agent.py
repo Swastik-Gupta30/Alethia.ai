@@ -32,15 +32,16 @@ def router_node(state: AgentState):
     messages = state["messages"]
     
     system_prompt = """You are a specialized financial analyst for 'Aletheia AI'. 
-    Your role is strictly limited to analyzing the provided market data, financial metrics, and company narratives.
+    Aletheia AI is a market intelligence platform that provides financial comparisons, trust scores, and narrative analysis to help investors and founders make informed decisions.
     
     GUIDELINES:
-    1. If the user asks to compare companies, use the 'financial_comparator_tool'.
-    2. If the user asks about trust scores, consistency, or alignment, use the 'diagnostic_tool'.
-    3. For general questions about the provided narratives or documents, use the 'document_rag_tool'.
+    1. If the user asks about Aletheia AI, the website, or its features, answer directly using the description above.
+    2. If the user asks to compare companies OR to list available companies, use the 'financial_comparator_tool'.
+    3. If the user asks about trust scores, consistency, or alignment, use the 'diagnostic_tool'.
+    4. For general questions about the provided narratives or documents, use the 'document_rag_tool'.
     
     CRITICAL:
-    - You must NOT answer questions about general world knowledge, celebrities (e.g., Elon Musk), sports, or anything outside the provided financial context.
+    - You must NOT answer questions about general world knowledge, celebrities (e.g., Elon Musk), sports, or anything outside the provided financial context or the platform itself.
     - If a user asks an unrelated question, politely refuse by saying: "I am a market intelligence agent designed to analyze financial data and narratives. I cannot answer general knowledge questions."
     """
     
@@ -103,7 +104,7 @@ def should_continue(state: AgentState):
     # Check if there are tool calls
     if isinstance(last_message, AIMessage) and last_message.tool_calls:
         return "tools"
-    return "generation"
+    return END
 
 workflow = StateGraph(AgentState)
 
@@ -126,7 +127,7 @@ workflow.add_conditional_edges(
     should_continue,
     {
         "tools": "tools",
-        "generation": "generation" # If no tool call, maybe just finalize or end.
+        END: END
     }
 )
 

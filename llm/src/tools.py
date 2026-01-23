@@ -25,8 +25,9 @@ llm = ChatGroq(
 @tool
 def financial_comparator_tool(query: str) -> str:
     """
-    Useful for comparing financial metrics between companies (tickers) using market_data.csv.
-    Can handle queries like 'Compare Alpha and Beta'.
+    Useful for comparing financial metrics between companies (tickers), listing available companies, 
+    or querying the dataset using market_data.csv.
+    Can handle queries like 'Compare Alpha and Beta' or 'What companies are in the data?'.
     """
     df = pd.read_csv(CSV_PATH)
     
@@ -39,6 +40,7 @@ def financial_comparator_tool(query: str) -> str:
         You are a financial analyst. 
         When asked to compare tickers (e.g., 'Compare Alpha and Beta'), 
         you MUST fetch the relevant rows for ALL mentioned tickers from the dataframe.
+        If asked to list companies, YOU MUST execute `df['ticker'].unique()` to get the complete list.
         Format the output diligently as a markdown table showing the comparison of key metrics.
         If the user asks for specific metrics, focus on those.
         """

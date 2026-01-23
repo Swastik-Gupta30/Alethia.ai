@@ -28,6 +28,7 @@ class MarketDataset(Dataset):
         print(f"MarketDataset initialized with {len(self.temporal_features)} temporal and {len(self.tabular_features)} tabular features")
         
         # Fill NaN values
+        # Fill NaN values
         self.df = self.df.fillna(method='ffill').fillna(method='bfill').fillna(0)
         
         # Compute normalization statistics (Z-score normalization)

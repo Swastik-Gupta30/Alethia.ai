@@ -201,10 +201,19 @@ async def load_resources():
             try:
                 checkpoint = torch.load(checkpoint_path, map_location=torch.device('cpu'))
                 # Check input weights directly
-                if hasattr(model_instance, 'tabular_encoder'):
-                     loaded_weight_shape = checkpoint['state_dict']['tabular_encoder.net.0.weight'].shape[1]
-                     expected_tabular_dim = loaded_weight_shape # Update expected based on actual loaded model
-                     run_data_alignment_check(tabular_features, loaded_weight_shape)
+                if 'state_dict' in checkpoint and 'tabular_encoder.net.0.weight' in checkpoint['state_dict']:
+                    ckpt_tabular_dim = checkpoint['state_dict']['tabular_encoder.net.0.weight'].shape[1]
+                    
+                    if ckpt_tabular_dim != tabular_dim:
+                        print(f"INFO: Dimension mismatch detected. Re-initializing model to match checkpoint: CSV({tabular_dim}) vs Checkpoint({ckpt_tabular_dim})")
+                        model_instance = FinancialIntelligencePipeline(
+                            temporal_dim=temporal_dim,
+                            tabular_dim=ckpt_tabular_dim,
+                            latent_dim=128
+                        )
+                    
+                    expected_tabular_dim = ckpt_tabular_dim
+                    run_data_alignment_check(tabular_features, ckpt_tabular_dim)
 
                 load_state_with_strict_fix(model_instance, checkpoint['state_dict'])
                 model_instance.eval()
