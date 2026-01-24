@@ -10,3 +10,4 @@ pandas
 transformers
 scipy
 torchmetrics
+yfinance

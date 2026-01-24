@@ -406,24 +406,84 @@ def get_prediction(ticker: str):
 
 @app.get("/tickers")
 def get_tickers():
-    """Returns a list of available tickers with summary stats."""
-    if market_data is None:
-        raise HTTPException(status_code=503, detail="Market data not loaded")
+    """Returns a list of available tickers with summary stats (Live + Analyzed)."""
     
-    unique_tickers = market_data['ticker'].unique().tolist()
+    # 1. Define Live Tickers List (Popular Tech & Finance)
+    LIVE_TICKERS = [
+        "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "TSLA", "META", 
+        "AMD", "INTC", "NFLX", "JPM", "V", "WMT", "DIS"
+    ]
+    
+    unique_tickers = []
+    if market_data is not None:
+        unique_tickers = market_data['ticker'].unique().tolist()
+    
+    # Combine lists (avoid duplicates)
+    all_tickers = list(set(LIVE_TICKERS + unique_tickers))
+    
     summary = []
     
-    for ticker in unique_tickers:
-        ticker_df = market_data[market_data['ticker'] == ticker]
-        if ticker_df.empty:
-            continue
-            
-        last_row = ticker_df.iloc[-1]
-        summary.append({
-            "ticker": ticker,
-            "price": round(last_row['close'], 2),
-            # Simple change calculation: (close - open) / open * 100
-            "change": round((last_row['close'] - last_row['open']) / last_row['open'] * 100, 2)
-        })
+    # 2. Fetch Live Data via YFinance (Batch fetching is faster)
+    try:
+        import yfinance as yf
+        # Fetch data for alltickers at once
+        tickers_str = " ".join(all_tickers)
+        live_data = yf.Tickers(tickers_str)
         
-    return summary
+        for ticker in all_tickers:
+            is_analyzed = ticker in unique_tickers
+            
+            try:
+                # Try to get live data first
+                info = live_data.tickers[ticker].fast_info
+                # Fallback to market_data if live fetch fails or is strangely empty (though fast_info usually reliable)
+                if info is None or not hasattr(info, 'last_price'):
+                    raise ValueError("No live data")
+                
+                price = round(info.last_price, 2)
+                prev_close = info.previous_close
+                if prev_close:
+                    change_pct = round(((price - prev_close) / prev_close) * 100, 2)
+                else:
+                    change_pct = 0.0
+                     
+                summary.append({
+                    "ticker": ticker,
+                    "name": ticker, # simplified, can get full name if needed but requires .info which is slower
+                    "price": price,
+                    "change": change_pct,
+                    "is_analyzed": is_analyzed
+                })
+                
+            except Exception as e:
+                # Fallback to local CSV data if live fails
+                if is_analyzed:
+                    ticker_df = market_data[market_data['ticker'] == ticker]
+                    if not ticker_df.empty:
+                        last_row = ticker_df.iloc[-1]
+                        summary.append({
+                            "ticker": ticker,
+                            "name": ticker,
+                            "price": round(last_row['close'], 2),
+                            "change": round((last_row['close'] - last_row['open']) / last_row['open'] * 100, 2),
+                            "is_analyzed": True,
+                            "source": "historical_fallback"
+                        })
+    except ImportError:
+        # Fallback if yfinance not installed (should verify installation first)
+        print("WARNING: yfinance not installed. Returning only csv data.")
+        if market_data is not None:
+            for ticker in unique_tickers:
+                ticker_df = market_data[market_data['ticker'] == ticker]
+                if not ticker_df.empty:
+                    last_row = ticker_df.iloc[-1]
+                    summary.append({
+                        "ticker": ticker,
+                        "name": ticker,
+                        "price": round(last_row['close'], 2),
+                        "change": round((last_row['close'] - last_row['open']) / last_row['open'] * 100, 2),
+                        "is_analyzed": True
+                    })
+y
+
+    return summar
