@@ -24,7 +24,7 @@ def financial_comparator_tool(query: str) -> str:
     """
     Useful for comparing financial metrics between companies (tickers), listing available companies, 
     or querying the dataset using market_data.csv.
-    Can handle queries like 'Compare Alpha and Beta' or 'What companies are in the data?'.
+    Can handle queries like 'Compare AAPL and AMD' or 'What companies are in the data?'.
     """
     df = pd.read_csv(CSV_PATH)
     
@@ -35,7 +35,7 @@ def financial_comparator_tool(query: str) -> str:
         allow_dangerous_code=True,
         prefix="""
         You are a financial analyst. 
-        When asked to compare tickers (e.g., 'Compare Alpha and Beta'), 
+        When asked to compare tickers (e.g., 'Compare AAPL and AMD'), 
         you MUST fetch the relevant rows for ALL mentioned tickers from the dataframe.
         If asked to list companies, YOU MUST execute `df['ticker'].unique()` to get the complete list.
         Format the output diligently as a markdown table showing the comparison of key metrics.
@@ -53,7 +53,7 @@ def financial_comparator_tool(query: str) -> str:
 def diagnostic_tool(ticker: str) -> str:
     """
     Diagnoses issues with a specific ticker by checking alignment flags in narratives.json.
-    Input should be the ticker symbol (e.g., 'ALPHA').
+    Input should be the ticker symbol (e.g., 'AAPL').
     """
     try:
         if not os.path.exists(JSON_PATH):
