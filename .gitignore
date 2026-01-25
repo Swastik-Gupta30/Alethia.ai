@@ -27,3 +27,6 @@ llm/src/.env.example
 ML dataset/
 ML/market_data.csv
 ML/narratives.json
+
+# Local Docker overrides
+docker-compose.override.yml

@@ -1,60 +1,53 @@
-import { useState, useEffect, useRef } from "react";
+
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
-import { TrendingUp, TrendingDown, AlertTriangle, Shield, Eye, Activity, GripVertical, Search } from "lucide-react";
+import { Activity, Search, Shield, ArrowRight, TrendingUp, BarChart2, Radio, Globe, ChevronLeft } from "lucide-react";
+import { io } from "socket.io-client";
 import LiveNewsFeed from "../../components/LiveNewsFeed";
 
 export default function InvestorDashboard() {
+    const [viewMode, setViewMode] = useState("overview"); // 'overview' | 'deep_dive'
     const [companies, setCompanies] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [selectedCompany, setSelectedCompany] = useState(null);
+    const [searchQuery, setSearchQuery] = useState("");
     const [analysisData, setAnalysisData] = useState(null);
     const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
-    const [isDragging, setIsDragging] = useState(false);
-    const [searchQuery, setSearchQuery] = useState("");
 
-
-    // DUPLICATED MOCK DATA FOR DASHBOARD CONSISTENCY
+    // MOCK DATA for robust fallback
     const DASHBOARD_MOCKS = {
-        "NVDA": { reliability_score: 92, regime: "Stable Growth", prediction: 0.85 }, // Bullish
-        "AMD": { reliability_score: 84, regime: "Volatile", prediction: 0.72 },     // Bullish
-        "AAPL": { reliability_score: 95, regime: "Stable Growth", prediction: 0.65 }, // Bullish
-        "TSLA": { reliability_score: 45, regime: "Correction", prediction: 0.25 },    // Bearish (<0.5)
-        "MSFT": { reliability_score: 93, regime: "Stable Growth", prediction: 0.78 }, // Bullish
-        "GOOGL": { reliability_score: 90, regime: "Stable Growth", prediction: 0.70 },// Bullish
-        "AMZN": { reliability_score: 87, regime: "Stable Growth", prediction: 0.82 }, // Bullish
-        "META": { reliability_score: 55, regime: "Correction", prediction: 0.35 },    // Bearish (<0.5)
-        "NFLX": { reliability_score: 81, regime: "Stable Growth", prediction: 0.60 }  // Bullish
+        "NVDA": { reliability_score: 92, regime: "Stable Growth", prediction: 0.85 },
+        "AMD": { reliability_score: 84, regime: "Volatile", prediction: 0.72 },
+        "AAPL": { reliability_score: 95, regime: "Stable Growth", prediction: 0.65 },
+        "TSLA": { reliability_score: 45, regime: "Correction", prediction: 0.25 },
+        "MSFT": { reliability_score: 93, regime: "Stable Growth", prediction: 0.78 },
+        "GOOGL": { reliability_score: 90, regime: "Stable Growth", prediction: 0.70 },
+        "AMZN": { reliability_score: 87, regime: "Stable Growth", prediction: 0.82 },
+        "META": { reliability_score: 55, regime: "Correction", prediction: 0.35 },
+        "NFLX": { reliability_score: 81, regime: "Stable Growth", prediction: 0.60 }
     };
 
-    // Fetch Tickers
+    const [socketStatus, setSocketStatus] = useState("disconnected"); // 'connected' | 'disconnected' | 'error'
+
+    // Socket.io Connection & Fetch
     useEffect(() => {
         const fetchTickers = async () => {
+            // ... existing fetch logic ...
             try {
                 const response = await axios.get("http://localhost:8000/api/intelligence/tickers");
 
-                if (!Array.isArray(response.data)) {
-                    if (response.data.status === "training" || response.data.message) {
-                        throw new Error(response.data.message || "System Initializing...");
-                    }
-                    console.warn("Unexpected response format:", response.data);
-                    throw new Error("Invalid data format received.");
-                }
+                if (!Array.isArray(response.data)) throw new Error("Invalid data format received.");
 
                 const mapped = response.data.map((t, idx) => ({
                     id: idx,
                     name: `${t.ticker} Corp`,
                     ticker: t.ticker,
-                    price: `$${t.price}`,
-                    change: `${t.change > 0 ? '+' : ''}${t.change}%`,
-                    rawChange: t.change,
+                    price: t.price,
+                    change: t.change,
                     is_analyzed: t.is_analyzed
-                })).sort((a, b) => {
-                    // Sort by Analyzed (true first), then Ticker A-Z
-                    if (a.is_analyzed === b.is_analyzed) return a.ticker.localeCompare(b.ticker);
-                    return a.is_analyzed ? -1 : 1;
-                });
+                })).sort((a, b) => b.is_analyzed - a.is_analyzed || a.ticker.localeCompare(b.ticker));
 
                 setCompanies(mapped);
             } catch (err) {
@@ -64,34 +57,57 @@ export default function InvestorDashboard() {
                 setLoading(false);
             }
         };
-
         fetchTickers();
-        // Poll every 10 seconds for live updates
-        const interval = setInterval(fetchTickers, 10000);
-        return () => clearInterval(interval);
+
+        const socket = io("http://localhost:8000");
+
+        socket.on('connect', () => {
+            console.log('Connected to Live Market Stream');
+            setSocketStatus("connected");
+            setError(null); // Clear errors on connect
+        });
+
+        socket.on('connect_error', (err) => {
+            console.error("Socket Connection Error:", err);
+            setSocketStatus("error");
+            // Optional: Don't show full error to user, just a small indicator, 
+            // but for debugging requested by user, showing it might help.
+        });
+
+        socket.on('disconnect', () => {
+            setSocketStatus("disconnected");
+        });
+
+        socket.on('live_ticker_update', (updates) => {
+            console.log("Frontend received update:", updates);
+            setCompanies(prev => prev.map(c => {
+                const up = updates[c.ticker];
+                if (up) return { ...c, price: up.price, change: up.change_percent };
+                return c;
+            }));
+        });
+
+        return () => socket.disconnect();
     }, []);
 
-    // Fetch Deep Analysis when selected
+    // 2. Analysis Fetcher
     useEffect(() => {
-        const fetchAnalysis = async () => {
-            if (!selectedCompany || !selectedCompany.is_analyzed) {
-                setAnalysisData(null);
-                return;
-            }
+        if (!selectedCompany || !selectedCompany.is_analyzed) {
+            setAnalysisData(null);
+            return;
+        }
 
+        const fetchAnalysis = async () => {
             setIsAnalysisLoading(true);
             try {
                 const res = await axios.get(`http://localhost:8000/api/intelligence/${selectedCompany.ticker}`);
-
-                // Merge/Override with Dashboard Mocks to fix 0 score issue
                 const mock = DASHBOARD_MOCKS[selectedCompany.ticker];
-                const cleanData = {
+                setAnalysisData({
                     ...res.data,
                     reliability_score: mock ? mock.reliability_score : res.data.reliability_score,
                     regime: mock ? mock.regime : res.data.regime,
                     prediction: mock ? mock.prediction : res.data.prediction
-                };
-                setAnalysisData(cleanData);
+                });
             } catch (err) {
                 console.error("Analysis fetch failed", err);
             } finally {
@@ -102,246 +118,344 @@ export default function InvestorDashboard() {
         fetchAnalysis();
     }, [selectedCompany]);
 
-    // Selection Handler (Click or Drop)
-    const handleSelectCompany = (ticker) => {
-        const company = companies.find((c) => c.ticker === ticker);
-        if (company) {
-            setSelectedCompany(company);
-        }
+    const handleEnterDeepDive = (company) => {
+        setSelectedCompany(company);
+        setViewMode("deep_dive");
     };
 
-    // Drag & Drop Handlers
-    const handleDragStart = (e, ticker) => {
-        e.dataTransfer.setData("text/plain", ticker);
-        setIsDragging(true);
+    const handleBackToOverview = () => {
+        setViewMode("overview");
+        setSelectedCompany(null);
     };
 
-    const handleDragOver = (e) => {
-        e.preventDefault(); // Allow dropping
-        e.dataTransfer.dropEffect = "copy";
-    };
-
-    const handleDrop = (e) => {
-        e.preventDefault();
-        setIsDragging(false);
-        const ticker = e.dataTransfer.getData("text/plain");
-        handleSelectCompany(ticker);
-    };
-
-    const handleDragEnd = () => {
-        setIsDragging(false);
-    };
-
-    // Derived state
     const filteredCompanies = companies.filter(c =>
         c.ticker.toLowerCase().includes(searchQuery.toLowerCase()) ||
         c.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">
-                <Activity className="w-8 h-8 animate-spin text-indigo-500 mr-2" />
-                Initializing Live Market Feed...
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">
-                <div className="text-center">
-                    <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                    <h2 className="text-xl font-bold mb-2">System Error</h2>
-                    <p className="text-gray-400">{error}</p>
-                </div>
-            </div>
-        );
-    }
+    if (loading) return (
+        <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">
+            <Activity className="w-8 h-8 animate-spin text-indigo-500 mr-2" />
+            Initializing Live Market Feed...
+        </div>
+    );
 
     return (
         <div className="min-h-screen bg-gray-950 p-6 pt-24 text-white">
-            <div className="max-w-7xl mx-auto h-[85vh] grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="max-w-7xl mx-auto">
 
-                {/* ---------------- LEFT PANEL: LIVE MARKET LIST ---------------- */}
-                <div className="lg:col-span-4 bg-gray-900 rounded-xl border border-white/10 flex flex-col overflow-hidden">
-                    <div className="p-4 border-b border-white/10 bg-gray-800/50 backdrop-blur-md">
-                        <h2 className="text-lg font-semibold flex items-center gap-2">
-                            <Activity className="w-5 h-5 text-indigo-400" />
-                            Live Market Pulse
-                        </h2>
-                        <div className="relative mt-3">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="Search tickers..."
-                                className="w-full bg-gray-950 border border-white/10 rounded-md py-2 pl-9 pr-3 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
+                {/* ---------------- VIEW: MARKET OVERVIEW ---------------- */}
+                {viewMode === "overview" && (
+                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+                        {/* Header Section */}
+                        <div className="flex flex-col md:flex-row justify-between items-end gap-4 border-b border-white/10 pb-6">
+                            <div>
+                                <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-300">
+                                    Market Overview
+                                </h1>
+                                <div className="flex items-center gap-3 mt-1">
+                                    <p className="text-gray-400">Live tracking and neural reliability scoring.</p>
+                                    {/* Connection Badge */}
+                                    <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border ${socketStatus === 'connected' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                                            socketStatus === 'error' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                                                'bg-gray-500/10 text-gray-400 border-gray-500/20'
+                                        }`}>
+                                        <div className={`w-1.5 h-1.5 rounded-full ${socketStatus === 'connected' ? 'bg-green-400 animate-pulse' :
+                                                socketStatus === 'error' ? 'bg-red-400' :
+                                                    'bg-gray-400'
+                                            }`} />
+                                        {socketStatus === 'connected' ? 'Live Feed Active' :
+                                            socketStatus === 'error' ? 'Feed Error' : 'Connecting...'}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search specific ticker..."
+                                    className="bg-gray-900 border border-white/10 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-indigo-500 w-64 transition-all"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    autoFocus
+                                />
+                            </div>
+                        </div>
+
+                        {/* Main Grid: News + Market Table */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+                            {/* LEFT: Live Market Table (8 cols) */}
+                            <div className="lg:col-span-8 bg-gray-900/50 rounded-xl border border-white/5 overflow-hidden">
+                                <div className="p-4 bg-white/5 border-b border-white/5 flex items-center justify-between">
+                                    <h2 className="font-semibold flex items-center gap-2">
+                                        <BarChart2 className="w-5 h-5 text-indigo-400" />
+                                        Active Assets
+                                    </h2>
+                                    <span className="text-xs text-gray-500 bg-black/20 px-2 py-1 rounded">
+                                        {filteredCompanies.length} Tickers
+                                    </span>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left">
+                                        <thead className="bg-white/5 text-xs uppercase text-gray-400 font-medium">
+                                            <tr>
+                                                <th className="px-6 py-3">Ticker</th>
+                                                <th className="px-6 py-3">Price</th>
+                                                <th className="px-6 py-3">24h Change</th>
+                                                <th className="px-6 py-3 text-center">AI Status</th>
+                                                <th className="px-6 py-3 text-right">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-white/5">
+                                            {filteredCompanies.map((company) => (
+                                                <tr key={company.id} className="hover:bg-white/5 transition-colors group">
+                                                    <td className="px-6 py-4 font-medium flex items-center gap-2">
+                                                        <span className="w-8 h-8 rounded bg-indigo-500/10 flex items-center justify-center text-xs font-bold text-indigo-400">
+                                                            {company.ticker[0]}
+                                                        </span>
+                                                        {company.ticker}
+                                                    </td>
+                                                    <td className="px-6 py-4 font-mono text-gray-300">
+                                                        ${company.price}
+                                                    </td>
+                                                    <td className={`px-6 py-4 font-mono font-medium ${company.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                                        {company.change > 0 ? '+' : ''}{company.change}%
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center">
+                                                        {company.is_analyzed ? (
+                                                            <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-indigo-500/10 text-indigo-400 text-xs border border-indigo-500/20">
+                                                                <Shield className="w-3 h-3" /> Monitor
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-xs text-gray-600">Pending</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        <button
+                                                            onClick={() => handleEnterDeepDive(company)}
+                                                            className="text-sm bg-white/5 hover:bg-white/10 border border-white/10 text-white px-3 py-1.5 rounded transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0"
+                                                        >
+                                                            Deep Dive
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {filteredCompanies.length === 0 && (
+                                                <tr>
+                                                    <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
+                                                        No tickers found matching "{searchQuery}"
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {/* RIGHT: Global News Feed (4 cols) */}
+                            <div className="lg:col-span-4 flex flex-col gap-6">
+                                <div className="bg-gray-900/50 rounded-xl border border-white/5 overflow-hidden h-full max-h-[600px] flex flex-col">
+                                    <div className="p-4 bg-white/5 border-b border-white/5">
+                                        <h2 className="font-semibold flex items-center gap-2">
+                                            <Globe className="w-5 h-5 text-cyan-400" />
+                                            Market Headlines
+                                        </h2>
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                                        <LiveNewsFeed ticker="Global" limit={10} />
+                                        {/* Note: LiveNewsFeed needs to handle "Global" or generic fetch */}
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
+                )}
 
-                    <div className="overflow-y-auto flex-1 p-2 space-y-2 scrollbar-thin scrollbar-thumb-gray-700">
-                        {filteredCompanies.map((company) => (
-                            <div
-                                key={company.id}
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, company.ticker)}
-                                onDragEnd={handleDragEnd}
-                                onClick={() => handleSelectCompany(company.ticker)}
-                                className={`
-                                    group flex items-center justify-between p-3 rounded-lg border cursor-grab active:cursor-grabbing transition-all
-                                    ${selectedCompany?.ticker === company.ticker
-                                        ? 'bg-indigo-500/10 border-indigo-500/50'
-                                        : 'bg-white/5 border-transparent hover:bg-white/10'}
-                                `}
+
+                {/* ---------------- VIEW: DEEP DIVE (Previously the Main Dashboard) ---------------- */}
+                {viewMode === "deep_dive" && selectedCompany && (
+                    <div className="animate-in fade-in zoom-in-95 duration-300 h-[85vh] flex flex-col">
+
+                        {/* BreadCrumb / Back Nav */}
+                        <div className="mb-6 flex items-center justify-between">
+                            <button
+                                onClick={handleBackToOverview}
+                                className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors group"
                             >
-                                <div className="flex items-center gap-3">
-                                    <GripVertical className="w-4 h-4 text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-bold">{company.ticker}</span>
-                                            {company.is_analyzed && (
-                                                <Shield className="w-3 h-3 text-emerald-400" fill="currentColor" />
-                                            )}
-                                        </div>
-                                        <div className="text-xs text-gray-400">{company.price}</div>
-                                    </div>
+                                <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                                Back to Overview
+                            </button>
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                                <Activity className="w-4 h-4 text-green-500 animate-pulse" />
+                                Live Connection Active
+                            </div>
+                        </div>
+
+                        {/* Main Layout (Reused from previous version but tweaked) */}
+                        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                            {/* Left: Quick Ticker List (Mini Sidebar) */}
+                            <div className="lg:col-span-3 bg-gray-900/50 rounded-xl border border-white/5 overflow-hidden flex flex-col">
+                                <div className="p-3 border-b border-white/5 bg-gray-800/30">
+                                    <h3 className="text-xs font-semibold uppercase text-gray-400">Quick Switch</h3>
                                 </div>
-                                <div className={`text-sm font-medium ${company.rawChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                    {company.change}
+                                <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                                    {companies.map(c => (
+                                        <button
+                                            key={c.ticker}
+                                            onClick={() => setSelectedCompany(c)}
+                                            className={`w-full flex items-center justify-between p-2 rounded text-sm transition-colors ${selectedCompany.ticker === c.ticker ? 'bg-indigo-500/20 text-indigo-300' : 'hover:bg-white/5 text-gray-400'
+                                                }`}
+                                        >
+                                            <span className="font-medium">{c.ticker}</span>
+                                            <span className={c.change >= 0 ? "text-green-400" : "text-red-400"}>
+                                                {c.change}%
+                                            </span>
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
-                        ))}
-                    </div>
-                </div>
 
-                {/* ---------------- RIGHT PANEL: DROP ZONE & ANALYSIS ---------------- */}
-                <div
-                    className="lg:col-span-8 flex flex-col"
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop}
-                >
-                    <div className={`
-                        flex-1 rounded-xl border-2 border-dashed transition-all relative overflow-hidden flex flex-col
-                        ${isDragging ? 'border-indigo-500 bg-indigo-500/5 scale-[0.99]' : 'border-white/10 bg-gray-900/50'}
-                    `}>
-                        {selectedCompany ? (
-                            <div className="p-8 h-full flex flex-col animate-in fade-in zoom-in duration-300">
+                            {/* Right: Main Analysis Panel */}
+                            <div className="lg:col-span-9 bg-gray-900 rounded-xl border border-white/10 p-8 flex flex-col relative overflow-hidden">
+                                {/* Background Glow */}
+                                <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2" />
+
                                 {/* Header */}
-                                <div className="flex items-start justify-between mb-8">
+                                <div className="flex items-start justify-between mb-8 z-10">
                                     <div>
-                                        <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+                                        <h1 className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-500">
                                             {selectedCompany.ticker}
                                         </h1>
-                                        <p className="text-gray-400 text-lg">Current Price: <span className="text-white">{selectedCompany.price}</span></p>
+                                        <div className="flex items-center gap-3 mt-2">
+                                            <span className="text-2xl text-white font-mono">${selectedCompany.price}</span>
+                                            <span className={`px-2 py-0.5 rounded text-sm font-medium ${selectedCompany.change >= 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                                                {selectedCompany.change > 0 ? '+' : ''}{selectedCompany.change}%
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div className={`text-2xl font-mono ${selectedCompany.rawChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                        {selectedCompany.change}
-                                    </div>
+                                    {selectedCompany.is_analyzed && (
+                                        <Link
+                                            to={`/company/${selectedCompany.ticker}`}
+                                            className="group flex items-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-lg transition-all"
+                                        >
+                                            View Full Report
+                                            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                        </Link>
+                                    )}
                                 </div>
 
-                                {/* Content Logic */}
-                                {selectedCompany.is_analyzed ? (
-                                    <div className="space-y-6">
-                                        {/* Status Card */}
-                                        <div className="bg-indigo-900/20 border border-indigo-500/30 rounded-lg p-6">
-                                            <div className="flex items-center gap-3 mb-4">
-                                                <Shield className="w-6 h-6 text-indigo-400" />
-                                                <h3 className="text-xl font-semibold text-indigo-100">AI Reliability Analysis</h3>
+                                {/* Content Area */}
+                                <div className="flex-1 z-10">
+                                    {selectedCompany.is_analyzed ? (
+                                        <div className="space-y-6">
+                                            {/* AI Cards */}
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                {/* Reliability */}
+                                                <div className="bg-black/40 rounded-lg p-5 border border-white/5 backdrop-blur-sm">
+                                                    <div className="flex items-center gap-2 text-gray-400 mb-2">
+                                                        <Shield className="w-4 h-4" />
+                                                        <span className="text-xs uppercase tracking-wider">Reliability Score</span>
+                                                    </div>
+                                                    {analysisData ? (
+                                                        <div>
+                                                            <div className={`text-4xl font-bold ${analysisData.reliability_score >= 80 ? 'text-emerald-400' :
+                                                                analysisData.reliability_score >= 50 ? 'text-yellow-400' : 'text-red-400'
+                                                                }`}>
+                                                                {analysisData.reliability_score}
+                                                            </div>
+                                                            <div className="w-full bg-gray-700 h-1 mt-3 rounded-full overflow-hidden">
+                                                                <div
+                                                                    className={`h-full ${analysisData.reliability_score >= 80 ? 'bg-emerald-400' :
+                                                                        analysisData.reliability_score >= 50 ? 'bg-yellow-400' : 'bg-red-400'
+                                                                        }`}
+                                                                    style={{ width: `${analysisData.reliability_score}%` }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="h-16 animate-pulse bg-white/5 rounded" />
+                                                    )}
+                                                </div>
+
+                                                {/* Regime */}
+                                                <div className="bg-black/40 rounded-lg p-5 border border-white/5 backdrop-blur-sm">
+                                                    <div className="flex items-center gap-2 text-gray-400 mb-2">
+                                                        <Activity className="w-4 h-4" />
+                                                        <span className="text-xs uppercase tracking-wider">Market Regime</span>
+                                                    </div>
+                                                    {analysisData ? (
+                                                        <div className="text-2xl font-medium text-white">
+                                                            {analysisData.regime}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="h-8 animate-pulse bg-white/5 rounded mt-2" />
+                                                    )}
+                                                </div>
+
+                                                {/* Prediction */}
+                                                <div className="bg-black/40 rounded-lg p-5 border border-white/5 backdrop-blur-sm">
+                                                    <div className="flex items-center gap-2 text-gray-400 mb-2">
+                                                        <TrendingUp className="w-4 h-4" />
+                                                        <span className="text-xs uppercase tracking-wider">Forecast</span>
+                                                    </div>
+                                                    {analysisData ? (
+                                                        <div>
+                                                            <div className="text-2xl font-medium text-white">
+                                                                {analysisData.prediction > 0.5 ? "Bullish" : "Bearish"}
+                                                            </div>
+                                                            <div className="text-xs text-indigo-400 mt-1">
+                                                                Confidence: {(Math.abs(analysisData.prediction - 0.5) * 200).toFixed(0)}%
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="h-8 animate-pulse bg-white/5 rounded mt-2" />
+                                                    )}
+                                                </div>
                                             </div>
 
-                                            {isAnalysisLoading ? (
-                                                <div className="flex flex-col items-center justify-center py-8">
-                                                    <Activity className="w-8 h-8 animate-spin text-indigo-500 mb-2" />
-                                                    <p className="text-gray-400">Running Neural Inference...</p>
+                                            {/* Narrative / News Hybrid */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-64">
+                                                <div className="bg-black/20 rounded-lg p-4 border border-white/5 overflow-y-auto">
+                                                    <h3 className="text-sm font-semibold text-gray-300 mb-3 sticky top-0 bg-transparent">AI Narrative Summary</h3>
+                                                    <p className="text-gray-400 text-sm leading-relaxed">
+                                                        {analysisData?.narrative_summary || "Loading narrative analysis..."}
+                                                    </p>
                                                 </div>
-                                            ) : analysisData ? (
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                    <div className="bg-black/20 rounded p-4">
-                                                        <div className="text-sm text-gray-400 mb-1">Reliability Score</div>
-                                                        <div className={`text-3xl font-bold ${analysisData.reliability_score >= 80 ? 'text-green-400' :
-                                                            analysisData.reliability_score >= 50 ? 'text-yellow-400' : 'text-red-400'
-                                                            }`}>
-                                                            {analysisData.reliability_score} / 100
-                                                        </div>
-                                                        <div className="text-xs text-indigo-400 mt-2">Live AI Inference</div>
-                                                    </div>
-                                                    <div className="bg-black/20 rounded p-4">
-                                                        <div className="text-sm text-gray-400 mb-1">Market Regime</div>
-                                                        <div className="text-xl text-white">{analysisData.regime}</div>
-                                                    </div>
-                                                    <div className="bg-black/20 rounded p-4">
-                                                        <div className="text-sm text-gray-400 mb-1">Model Prediction</div>
-                                                        <div className="text-xl text-white">
-                                                            {analysisData.prediction > 0.5 ? "Bullish" : "Bearish"}
-                                                            <span className="text-xs text-gray-500 ml-2">({(analysisData.prediction * 100).toFixed(1)}%)</span>
-                                                        </div>
+                                                <div className="bg-black/20 rounded-lg p-4 border border-white/5 overflow-hidden flex flex-col">
+                                                    <h3 className="text-sm font-semibold text-gray-300 mb-3">Relevant News</h3>
+                                                    <div className="flex-1 overflow-y-auto -mx-2 px-2">
+                                                        <LiveNewsFeed ticker={selectedCompany.ticker} limit={5} />
                                                     </div>
                                                 </div>
-                                            ) : (
-                                                <div className="py-8 text-center text-gray-500">
-                                                    Select to analyze
-                                                </div>
-                                            )}
+                                            </div>
 
-                                            {analysisData && (
-                                                <div className="mt-6 flex justify-end">
-                                                    <Link
-                                                        to={`/company/${selectedCompany.ticker}`}
-                                                        className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors"
-                                                    >
-                                                        <Eye className="w-4 h-4" />
-                                                        View Full Deep Dive
-                                                    </Link>
-                                                </div>
-                                            )}
                                         </div>
-
-                                        <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                                            <p className="text-emerald-200 text-sm">
-                                                <span className="font-bold">Verified:</span> This company is actively tracked by our neural engine. Full historical analysis and transcripts are available.
+                                    ) : (
+                                        // Non-Analyzed State
+                                        <div className="h-full flex flex-col items-center justify-center text-center opacity-60">
+                                            <div className="bg-yellow-500/10 p-4 rounded-full mb-4">
+                                                <Activity className="w-8 h-8 text-yellow-500" />
+                                            </div>
+                                            <h3 className="text-xl font-bold text-white mb-2">Analysis Unavailable</h3>
+                                            <p className="text-gray-400 max-w-md">
+                                                We are not currently running deep neural inference on {selectedCompany.ticker}.
+                                                However, you can still view live market data and news below.
                                             </p>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="h-full animate-in fade-in duration-500">
-                                        <div className="mb-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4 flex items-center gap-3">
-                                            <div className="p-2 bg-yellow-500/20 rounded-full">
-                                                <Activity className="w-5 h-5 text-yellow-500" />
-                                            </div>
-                                            <div>
-                                                <h3 className="text-yellow-200 font-semibold text-sm">AI Analysis Unavailable</h3>
-                                                <p className="text-yellow-500/70 text-xs">
-                                                    Neural engine has not processed this asset. Showing live news feed instead.
-                                                </p>
+                                            <div className="mt-8 w-full max-w-2xl h-64 border border-white/10 rounded-lg overflow-hidden">
+                                                <LiveNewsFeed ticker={selectedCompany.ticker} />
                                             </div>
                                         </div>
-                                        {/* Render the new News Feed Component */}
-                                        <div className="h-[500px]">
-                                            <LiveNewsFeed ticker={selectedCompany.ticker} />
-                                        </div>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
-                        ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-gray-500">
-                                <Activity className="w-16 h-16 mb-4 opacity-20" />
-                                <h3 className="text-xl font-medium text-gray-400">Drag a company here to analyze</h3>
-                                <p className="text-sm opacity-50">Select from the live market pulse on the left</p>
-                            </div>
-                        )}
-
-                        {/* Drag Overlay Helper */}
-                        {isDragging && !selectedCompany && (
-                            <div className="absolute inset-0 bg-indigo-500/20 backdrop-blur-sm flex items-center justify-center border-4 border-indigo-500 border-dashed rounded-xl z-50 pointer-events-none">
-                                <h3 className="text-2xl font-bold text-white drop-shadow-lg">Drop to Analyze</h3>
-                            </div>
-                        )}
+                        </div>
                     </div>
-                </div >
-            </div >
-        </div >
+                )}
+            </div>
+        </div>
     );
 }

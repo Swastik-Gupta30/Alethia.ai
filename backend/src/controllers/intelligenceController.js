@@ -176,3 +176,20 @@ export const getTickers = async (req, res) => {
         }
     }
 }
+
+
+export const getNews = async (req, res) => {
+    const { ticker } = req.params;
+    const pythonServiceUrl = process.env.PYTHON_SERVICE_URL || "http://localhost:8001";
+
+    try {
+        const response = await axios.get(`${pythonServiceUrl}/news/${ticker}`);
+        return res.status(200).json(response.data);
+    } catch (error) {
+        console.error("Error fetching news:", error.message);
+        if (error.response) {
+            return res.status(error.response.status).json(error.response.data);
+        }
+        return res.status(500).json({ message: "News service unavailable", news: [] });
+    }
+}
