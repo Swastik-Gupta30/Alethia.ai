@@ -11,3 +11,4 @@ transformers
 scipy
 torchmetrics
 yfinance
+redis

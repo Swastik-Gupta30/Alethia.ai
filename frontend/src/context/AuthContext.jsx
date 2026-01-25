@@ -50,13 +50,13 @@ export function AuthProvider({ children }) {
             const { data } = await api.post("/users/login", credentials);
             const decodedUser = handleToken(data.data.accessToken);
 
-            // Navigate based on role
-            if (decodedUser?.role === "Startup") {
+            // Navigate based on role (Case Insensitive)
+            const role = decodedUser?.role?.toLowerCase();
+            if (role === "startup" || role === "founder") {
                 navigate("/dashboard/startup");
-            } else if (decodedUser?.role === "Investor") {
-                navigate("/dashboard/investor");
             } else {
-                navigate("/"); // Fallback
+                // Default to investor for safety
+                navigate("/dashboard/investor");
             }
 
             return data;
@@ -70,8 +70,9 @@ export function AuthProvider({ children }) {
             const { data } = await api.post("/users/google", { credential });
             const decodedUser = handleToken(data.data.accessToken);
 
-            // Navigate based on role (default is investor if new, or existing)
-            if (decodedUser?.role === "Startup" || decodedUser?.role === "founder") {
+            // Navigate based on role (Case Insensitive)
+            const role = decodedUser?.role?.toLowerCase();
+            if (role === "startup" || role === "founder") {
                 navigate("/dashboard/startup");
             } else {
                 navigate("/dashboard/investor");
