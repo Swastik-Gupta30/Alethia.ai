@@ -344,7 +344,7 @@ export default function CompanyDetails() {
     return (
         <div className="min-h-screen bg-gray-950 text-white p-6 md:p-12 pt-24">
             <div className="max-w-6xl mx-auto relative">
-                <Link to="/dashboard/investor" className="absolute -top-16 left-0 inline-flex items-center text-gray-400 hover:text-white transition-colors bg-gray-900/50 px-4 py-2 rounded-lg border border-white/10 hover:bg-gray-800 backdrop-blur-sm shadow-lg">
+                <Link to="/dashboard/investor" className="inline-flex items-center text-gray-400 hover:text-white transition-colors bg-gray-900/50 px-4 py-2 rounded-lg border border-white/10 hover:bg-gray-800 backdrop-blur-sm shadow-lg mb-6">
                     <ArrowLeft className="w-5 h-5 mr-2" /> Back to Dashboard
                 </Link>
 

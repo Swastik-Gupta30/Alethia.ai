@@ -1,46 +1,31 @@
-// Mock News Generator for Untrained Tickers
-const generateMockNews = (ticker) => {
-    const sentiments = ['Positive', 'Neutral', 'Negative'];
-    const sources = ['Bloomberg', 'Reuters', 'CNBC', 'MarketWatch', 'Financial Times'];
-    const headlines = [
-        `Analysts upgrade ${ticker} citing strong earnings potential`,
-        `Market volatility impacts ${ticker} amidst global uncertainty`,
-        `Institutional investors increase stake in ${ticker}`,
-        `${ticker} announces new strategic partnership to expand market share`,
-        `Regulatory concerns loom over ${ticker}'s latest product launch`,
-        `Tech sector rally boosts ${ticker} to new highs`,
-        `${ticker} faces headwinds from supply chain disruptions`,
-        `Insider trading activity reported at ${ticker}`,
-        `${ticker} outlines ambitious roadmap for next fiscal year`,
-        `Competitor moves put pressure on ${ticker}'s margins`
-    ];
-
-    // Generate 5 random news items
-    return Array.from({ length: 5 }).map((_, i) => {
-        const sentiment = sentiments[Math.floor(Math.random() * sentiments.length)];
-        return {
-            id: i,
-            headline: headlines[Math.floor(Math.random() * headlines.length)],
-            source: sources[Math.floor(Math.random() * sources.length)],
-            sentiment: sentiment,
-            url: "#", // Placeholder
-            published_at: new Date(Date.now() - Math.random() * 86400000 * 2).toISOString() // Last 2 days
-        };
-    });
-};
+import axios from "axios";
 
 export const getCompanyNews = async (req, res) => {
     const { ticker } = req.params;
+    const pythonServiceUrl = process.env.PYTHON_SERVICE_URL || "http://localhost:8001";
 
-    // In a real production app, we would call:
-    // const news = await axios.get(`https://newsapi.org/v2/everything?q=${ticker}&apiKey=...`);
+    try {
+        // Map "Global" to a market index for general news (e.g., SPY or ^GSPC)
+        // Yahoo Finance works best with tickers, so SPY (S&P 500 ETF) is a good proxy for "Market News"
+        const searchTicker = (ticker.toUpperCase() === 'GLOBAL') ? 'SPY' : ticker.toUpperCase();
 
-    // For this project/demo, we use the sophisticated generator
-    const newsData = generateMockNews(ticker.toUpperCase());
+        const response = await axios.get(`${pythonServiceUrl}/news/${searchTicker}`);
 
-    res.status(200).json({
-        ticker: ticker.toUpperCase(),
-        news: newsData,
-        source: "Live News Feed (Simulated)"
-    });
+        // Transform the ML service response if necessary, or just pass it through
+        // ML service returns { news: [ ... ] }
+        return res.status(200).json({
+            ticker: ticker.toUpperCase(),
+            news: response.data.news || [],
+            source: "Yahoo Finance (Live)"
+        });
+
+    } catch (error) {
+        console.error("Error fetching live news:", error.message);
+        // Fallback or empty list on error
+        return res.status(500).json({
+            ticker: ticker,
+            news: [],
+            message: "Failed to fetch live news"
+        });
+    }
 };

@@ -2,6 +2,22 @@
 
 This document tracks all changes, feature implementations, and architectural decisions made throughout the development of the Financial Intelligence Platform.
 
+## [2026-01-25] ML Service Connection & Startup Optimization
+
+### Summary
+Fixed a critical issue where the ML service would hang during startup, causing `ECONNREFUSED` errors in the backend. Refactored the initialization logic to be non-blocking and resolved Pandas deprecation warnings.
+
+### 1. ML Service Optimization (`ml/src/api.py`)
+- **Non-Blocking Startup**: Moved heavy resource loading (model, tokenizer, datasets) to a separate thread using `asyncio.to_thread`. This prevents the main event loop from freezing, allowing the FastAPI server to accept connections immediately (even while loading).
+- **Deprecation Fix**: Replaced deprecated `fillna(method='ffill')` with the modern `ffill()` and `bfill()` methods.
+- **Enhanced Logging**: Added `flush=True` and more granular log statements to improve visibility into the startup process in Docker logs.
+
+### 2. Result
+- **Backend Connection**: The Backend can now connect to the ML service immediately. If the model is not yet ready, the ML service returns a proper "loading" status instead of timing out.
+- **Improved Resilience**: The architecture is now robust against slow model downloads or large dataset processing times.
+
+---
+
 ## [2026-01-22] Production ML Integration & Resilience
 
 ### Summary
