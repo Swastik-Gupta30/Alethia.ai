@@ -1,10 +1,12 @@
 
+
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
-import { Activity, Search, Shield, ArrowRight, TrendingUp, BarChart2, Radio, Globe, ChevronLeft } from "lucide-react";
+import { Activity, Search, Shield, ArrowRight, TrendingUp, BarChart2, Radio, Globe, ChevronLeft, Wallet } from "lucide-react";
 import { io } from "socket.io-client";
 import LiveNewsFeed from "../../components/LiveNewsFeed";
+import CreatePortfolioModal from "../../components/CreatePortfolioModal";
 
 export default function InvestorDashboard() {
     const [viewMode, setViewMode] = useState("overview"); // 'overview' | 'deep_dive'
@@ -15,6 +17,8 @@ export default function InvestorDashboard() {
     const [searchQuery, setSearchQuery] = useState("");
     const [analysisData, setAnalysisData] = useState(null);
     const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
+    const [showCreatePortfolioModal, setShowCreatePortfolioModal] = useState(false);
+    const [portfolio, setPortfolio] = useState(null);
 
     // MOCK DATA for robust fallback
     const DASHBOARD_MOCKS = {
@@ -90,6 +94,22 @@ export default function InvestorDashboard() {
         return () => socket.disconnect();
     }, []);
 
+    // Fetch user's portfolio
+    useEffect(() => {
+        const fetchPortfolio = async () => {
+            try {
+                const response = await axios.get('http://localhost:8000/api/v1/portfolio', {
+                    withCredentials: true
+                });
+                setPortfolio(response.data.portfolio);
+            } catch (err) {
+                // No portfolio yet - that's okay
+                console.log('No portfolio found', err.response?.status);
+            }
+        };
+        fetchPortfolio();
+    }, []);
+
     // 2. Analysis Fetcher
     useEffect(() => {
         if (!selectedCompany || !selectedCompany.is_analyzed) {
@@ -158,28 +178,55 @@ export default function InvestorDashboard() {
                                     <p className="text-gray-400">Live tracking and neural reliability scoring.</p>
                                     {/* Connection Badge */}
                                     <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border ${socketStatus === 'connected' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                            socketStatus === 'error' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                                                'bg-gray-500/10 text-gray-400 border-gray-500/20'
+                                        socketStatus === 'error' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                                            'bg-gray-500/10 text-gray-400 border-gray-500/20'
                                         }`}>
                                         <div className={`w-1.5 h-1.5 rounded-full ${socketStatus === 'connected' ? 'bg-green-400 animate-pulse' :
-                                                socketStatus === 'error' ? 'bg-red-400' :
-                                                    'bg-gray-400'
+                                            socketStatus === 'error' ? 'bg-red-400' :
+                                                'bg-gray-400'
                                             }`} />
                                         {socketStatus === 'connected' ? 'Live Feed Active' :
                                             socketStatus === 'error' ? 'Feed Error' : 'Connecting...'}
                                     </div>
                                 </div>
                             </div>
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <input
-                                    type="text"
-                                    placeholder="Search specific ticker..."
-                                    className="bg-gray-900 border border-white/10 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-indigo-500 w-64 transition-all"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    autoFocus
-                                />
+                            <div className="flex items-center gap-3">
+                                {/* Portfolio Actions */}
+                                {!portfolio && (
+                                    <button
+                                        onClick={() => setShowCreatePortfolioModal(true)}
+                                        className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl"
+                                    >
+                                        <Wallet className="w-4 h-4" />
+                                        Create Portfolio
+                                    </button>
+                                )}
+                                {portfolio && (
+                                    <>
+                                        <Link
+                                            to="/portfolio"
+                                            className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium px-4 py-2 rounded-lg transition-all shadow-lg hover:shadow-xl"
+                                        >
+                                            <Wallet className="w-4 h-4" />
+                                            View Portfolio
+                                        </Link>
+                                        <div className="flex items-center gap-2 bg-green-500/10 text-green-400 px-4 py-2 rounded-lg border border-green-500/20">
+                                            <span className="text-sm text-gray-400">Balance:</span>
+                                            <span className="font-medium">${portfolio.cash_balance.toLocaleString()}</span>
+                                        </div>
+                                    </>
+                                )}
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search specific ticker..."
+                                        className="bg-gray-900 border border-white/10 rounded-full py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-indigo-500 w-64 transition-all"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        autoFocus
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -456,6 +503,17 @@ export default function InvestorDashboard() {
                     </div>
                 )}
             </div>
+
+            {/* Create Portfolio Modal */}
+            {showCreatePortfolioModal && (
+                <CreatePortfolioModal
+                    onClose={() => setShowCreatePortfolioModal(false)}
+                    onSuccess={(newPortfolio) => {
+                        setPortfolio(newPortfolio);
+                        setShowCreatePortfolioModal(false);
+                    }}
+                />
+            )}
         </div>
     );
 }
