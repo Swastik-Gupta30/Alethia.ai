@@ -1,0 +1,22 @@
+{
+    "manifest_version": 3,
+    "name": "Aletheia AI - Financial Analysis",
+    "version": "1.0.0",
+    "description": "Analyze the financial reliability of webpages and ask follow-up questions",
+    "action": {
+        "default_popup": "index.html",
+        "default_title": "Aletheia AI"
+    },
+    "permissions": [
+        "activeTab",
+        "scripting"
+    ],
+    "host_permissions": [
+        "http://localhost:8000/*"
+    ],
+    "icons": {
+        "16": "icon16.png",
+        "48": "icon48.png",
+        "128": "icon128.png"
+    }
+}

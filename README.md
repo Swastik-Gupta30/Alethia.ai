@@ -284,7 +284,7 @@ The frontend is built to withstand the demands of active monitoring.
 | Name | Role |
 | :--- | :--- |
 | **Aryan Agarwal** | **Frontend Development**|
-| **Swastik Gupta** | **Backend Development @ AI**|
+| **Swastik Gupta** | **Backend Development & AI**|
 | **Saharsh Srivastava** | **Machine Learning**|
 
 ---
